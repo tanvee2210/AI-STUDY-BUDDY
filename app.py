@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
@@ -58,7 +59,18 @@ html, body, .stApp { font-family: 'Inter', sans-serif; }
     color: var(--text);
 }
 
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu, footer { visibility: hidden; }
+header { visibility: visible !important; background: transparent !important; }
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"] { display: none !important; }
+
+/* Hide streamlit's own toggle buttons - we replace them */
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] {
+    display: none !important;
+}
 .block-container { padding-top: 2rem !important; padding-bottom: 3rem !important; }
 
 /* ── SIDEBAR ── */
@@ -666,6 +678,100 @@ with st.sidebar:
         ],
         label_visibility="visible"
     )
+
+# ── Custom sidebar toggle button (uses components.html so JS actually runs) ──
+components.html("""
+<style>
+#sb-toggle {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 9999999;
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    border: 2px solid #a78bfa;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 14px rgba(167,139,250,0.6), 0 4px 18px rgba(124,58,237,0.5);
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+    user-select: none;
+    transition: all 0.2s;
+}
+#sb-toggle:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    box-shadow: 0 0 26px rgba(167,139,250,0.9), 0 6px 28px rgba(124,58,237,0.8);
+    transform: scale(1.08);
+}
+</style>
+<div id="sb-toggle" title="Toggle sidebar">❮❮</div>
+<script>
+var open = true;
+
+function getSidebar()  { return window.parent.document.querySelector('[data-testid="stSidebar"]'); }
+function getToggle()   { return document.getElementById('sb-toggle'); }
+
+function isSidebarVisible() {
+    var sb = getSidebar();
+    if (!sb) return false;
+    var rect = sb.getBoundingClientRect();
+    return rect.width > 10;
+}
+
+function showSidebar() {
+    var sidebar = getSidebar();
+    if (!sidebar) return;
+    sidebar.style.removeProperty('display');
+    sidebar.style.removeProperty('width');
+    sidebar.style.removeProperty('min-width');
+    sidebar.style.removeProperty('overflow');
+    sidebar.style.removeProperty('visibility');
+    var main = window.parent.document.querySelector('.main');
+    if (main) main.style.removeProperty('margin-left');
+    var block = window.parent.document.querySelector('.block-container');
+    if (block) block.style.removeProperty('max-width');
+    open = true;
+    getToggle().innerHTML = '❮❮';
+    getToggle().title = 'Hide sidebar';
+}
+
+function hideSidebar() {
+    var sidebar = getSidebar();
+    if (!sidebar) return;
+    sidebar.style.setProperty('display', 'none', 'important');
+    sidebar.style.setProperty('width', '0', 'important');
+    sidebar.style.setProperty('min-width', '0', 'important');
+    sidebar.style.setProperty('overflow', 'hidden', 'important');
+    var main = window.parent.document.querySelector('.main');
+    if (main) main.style.setProperty('margin-left', '0', 'important');
+    var block = window.parent.document.querySelector('.block-container');
+    if (block) block.style.setProperty('max-width', '100%', 'important');
+    open = false;
+    getToggle().innerHTML = '❯❯';
+    getToggle().title = 'Show sidebar';
+}
+
+function toggle() {
+    if (open) { hideSidebar(); } else { showSidebar(); }
+}
+
+// Wait for Streamlit to fully render, then sync state
+function init() {
+    var sidebar = getSidebar();
+    if (!sidebar) { setTimeout(init, 150); return; }
+    // Make sure sidebar is visible on load
+    showSidebar();
+}
+
+document.getElementById('sb-toggle').addEventListener('click', toggle);
+setTimeout(init, 300);
+</script>
+""", height=60)
 
 if feature == "💡 Concept Explainer":
     st.markdown("""
